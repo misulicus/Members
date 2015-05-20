@@ -19,7 +19,6 @@ function wpec_members_pre_gateway_notification( $cart_item_id, $merchant ) {
 
   if ( 'recurring_payment_profile_created' == $ipn['txn_type'] || 'subscr_signup' == $ipn['txn_type'] ) {
     $wpdb->query( "UPDATE `" . WPSC_TABLE_PURCHASE_LOGS . "` SET `transactid` ='{$transaction_id}'  WHERE `id` = " . absint( $purchase_id ) . " LIMIT 1" );
-    //error_log( 'PurchaseID = '. $purchase_id . print_r( $ipn, 1 ), 1, "jmihaialexandru@gmail.com","From: ipn@awesome.com\r\n; Subject: Recurring Payment IPN Notification - First Purchase\r\n; Content-Type: text/html" );
   }
 
   // Handle additional monthly transactions.  Checks for recency, as this will also get hit on the initial.
@@ -97,8 +96,6 @@ function wpec_members_pre_gateway_notification( $cart_item_id, $merchant ) {
       );
 
     //Email product list email to admin
-
-    //error_log( 'PurchaseID = '. $purchase_id . print_r( $ipn, 1 ), 1, "jmihaialexandru@gmail.com","From: ipn@awesome.com\r\n; Subject: Recurring Payment IPN Notification - Subsequent Purchase\r\n; Content-Type: text/html" );
 
     wpec_members_recurring_admin_report( $purchase_id );
 
@@ -315,4 +312,30 @@ function wpec_members_recurring_admin_report( $purchase_id ) {
     wp_mail( get_option( 'purch_log_email' ), __( 'Purchase Report', 'wpsc_members' ), $report );
 
 }
+
+/*
+ * Revalidates is_valid_ipn_response() assuming its a subscription request
+ * Not all post fields are sent back in a subscription
+ * @return bool
+ */
+ 
+function wpec_members_subscr_ipn_validation( $valid, $ipn ) {
+	
+	if ( ! $valid ) {
+		switch ( $ipn->paypal_ipn_values['txn_type'] ) {
+			case 'subscr_cancel':
+				$valid = true;
+				break;
+				
+			case 'subscr_signup':
+				$valid = true;
+				break;			
+			default:
+				break;
+		}
+	}
+	
+	return $valid;
+}
+add_filter( 'wpsc_paypal_standard_is_valid_ipn_response', 'wpec_members_subscr_ipn_validation', 10, 2 );
 ?>
